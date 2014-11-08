@@ -40,7 +40,6 @@ case class LobbyView(val playerName: String, root: HTMLElement) {
       div()(
         games.toSeq.sortBy(_.ended).map(game =>
           div(
-            width := "50%",
             margin := "10px",
             backgroundColor := (if (game.ended) "#ddbbbb" else "#bbbbdd"),
             padding := "10px",
