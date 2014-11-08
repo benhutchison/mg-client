@@ -2,27 +2,37 @@ package mg
 
 import org.scalajs.dom.{HTMLInputElement, HTMLElement}
 
+import org.scalajs.dom
+
 import scalatags.JsDom.all._
 
-case class PlayerNameView(mg: MemoryGame) extends View {
+class PlayerNameView(root: HTMLElement)  {
 
   val inp: HTMLInputElement = input(
-    placeholder := "Enter a unique player name",
+    placeholder := "Enter a player name",
     autofocus := true
   ).render
 
-  def view(): HTMLElement = {
+  def show() = {
+    root.setChild(view.render)
+  }
+
+  def view() = {
     div(
+      textAlign.center
+    )(
+      h1("Welcome to MM-OMG, the Massively Multiplayer- Online Memory Game"),
+      ("To begin, choose your player name"),
       form(
         inp,
         onsubmit := { () =>
           val playerName = inp.value
           if (playerName.nonEmpty)
-            mg.show(LobbyView(playerName, mg))
+            new LobbyView(playerName, root).show()
           false
         }
       )
-    ).render
+    )
   }
 
 }

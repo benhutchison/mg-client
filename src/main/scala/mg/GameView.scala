@@ -12,44 +12,84 @@ import autowire._
 import scalajs.concurrent.JSExecutionContext.Implicits.queue
 
 
-case class GameView(playerName: String, game: Game, mg: MemoryGame)
-  extends View {
+case class GameView(lobby: LobbyView, game: Game, root: HTMLElement) {
 
   val NoopHandler = () => ()
 
-  val yourTurn = game.currentPlayerName == playerName
+  val yourTurn = game.currentPlayerName == lobby.playerName
 
   val nextGameHandler: Try[Game] => Unit = {
     case Success(nextGame) => {
       println("Updated game state received")
-      mg.show(new GameView(playerName, nextGame, mg))
+      copy(game = nextGame).show()
     }
     case Failure(ex) =>
-      mg.show(new LobbyView(playerName, mg))
+      lobby.show()
   }
 
-  val view: HTMLElement   = {
-    if (!yourTurn)
-      observeGame()
-    buildView()
+  def show() = {
+    if (game.ended)
+      root.setChild(winView.render)
+    else {
+      if (!yourTurn)
+        observeGame()
+
+      root.setChild(playView.render)
+    }
   }
 
-  def buildView(): HTMLElement = {
+  def winView = {
+    val winner = game.players(game.winnerId.get)
+    val loser = game.opponent(winner.id)
+    val lobbyButton = button(
+      "Return to Lobby",
+      onclick := (() => lobby.show())
+    )
     div(
-      p(s"Game View. Your Turn=$yourTurn "),
-      span(game.toString),
+      div(s"Game ended on turn ${game.turn}"),
+      lobbyButton,
+      div(
+        cls := "alert alert-success",
+        role := "alert",
+        s"${winner.name} won. Score: ${winner.score}"
+      ),
+      div(
+        cls := "alert alert-danger",
+        role := "alert",
+        s"${loser.name} lost. Score: ${loser.score}"
+      )
+    )
+  }
+
+  def playView: HTMLElement = {
+    val concede = button(
+      "Concede",
+      height := "30px",
+      onclick := (() => {
+        val myId = game.players.values.find(_.name == lobby.playerName).get.id
+        MyClient[Api].concede(game, myId).call().foreach(
+          nextGame => copy(game = nextGame).show()
+        )
+      })
+    ).render
+
+    div(
+      span(cls := s"glyphicon glyphicon-${if (yourTurn) "ok" else "remove"}"),
+      p(s"Score ${game.players(game.currentPlayerId).score}"),
+      p(s"Opponent ${game.opponent(game.currentPlayerId).name}"),
+      if (yourTurn) concede else div(height := "30px"),
       div()(
         game.cards.map(card => {
 
           val revealed = game.revealed.contains(card)
           val matched = game.matched.contains(card)
           val text = if (revealed || matched) s"${card.num}" else s"?"
-          val color = if (revealed)
-            "#cccc99"
+          val foreAndBackgroundColors = if (revealed)
+            ("#88855", "#cccc99")
           else if (matched)
-            "#ddbbbb"
+            ("#997777", "#ddbbbb")
           else
-            "#aabbdd"
+            ("#667799", "#aabbdd")
 
           val handler = if (!yourTurn || matched)
             NoopHandler
@@ -57,12 +97,17 @@ case class GameView(playerName: String, game: Game, mg: MemoryGame)
             () => cardClicked(card)
 
           div(
+            textAlign.center,
             text,
-            backgroundColor := color,
+            color := foreAndBackgroundColors._1,
+            backgroundColor := foreAndBackgroundColors._2,
+            borderColor := foreAndBackgroundColors._1,
+            borderStyle := "double",
             margin := "20px",
-            width := "40px",
-            height := "30px",
+            width := "50px",
+            height := "60px",
             display := "inline-block",
+            fontSize.`x-large`,
             onclick := handler
           )
         })
