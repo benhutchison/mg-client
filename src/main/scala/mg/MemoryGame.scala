@@ -23,7 +23,7 @@ object MyClient extends autowire.Client[String, Unpickler, Pickler]{
 
   override def doCall(req: Request): concurrent.Future[String] = {
     dom.extensions.Ajax.post(
-      url = "http://localhost:8080/" + req.path.mkString("/"),
+      url = "/" + req.path.mkString("/"),
       data = Pickle.intoString(req.args)
     ).map(_.responseText)
   }
