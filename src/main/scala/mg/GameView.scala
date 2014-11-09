@@ -16,7 +16,8 @@ case class GameView(lobby: LobbyView, game: Game, root: HTMLElement) {
 
   val NoopHandler = () => ()
 
-  val yourTurn = game.currentPlayerName == lobby.playerName
+  val player = game.players.values.find(_.name == lobby.playerName).get
+  val yourTurn = game.currentPlayerName == player.name
 
   val nextGameHandler: Try[Game] => Unit = {
     case Success(nextGame) => {
@@ -66,8 +67,8 @@ case class GameView(lobby: LobbyView, game: Game, root: HTMLElement) {
       "Concede",
       height := "30px",
       onclick := (() => {
-        val myId = game.players.values.find(_.name == lobby.playerName).get.id
-        MyClient[Api].concede(game, myId).call().foreach(
+
+        MyClient[Api].concede(game, player.id).call().foreach(
           nextGame => copy(game = nextGame).show()
         )
       })
@@ -75,8 +76,8 @@ case class GameView(lobby: LobbyView, game: Game, root: HTMLElement) {
 
     div(
       span(cls := s"glyphicon glyphicon-${if (yourTurn) "ok" else "remove"}"),
-      p(s"Score ${game.players(game.currentPlayerId).score}"),
-      p(s"Opponent ${game.opponent(game.currentPlayerId).name}"),
+      p(s"Score ${player.score}"),
+      p(s"Opponent ${game.opponent(player.id).name}"),
       if (yourTurn) concede else div(height := "30px"),
       div()(
         game.cards.map(card => {
